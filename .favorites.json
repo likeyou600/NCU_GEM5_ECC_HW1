@@ -1,0 +1,42 @@
+[
+    {
+        "type": "Group",
+        "name": "config",
+        "parent_id": null,
+        "workspaceRoot": null,
+        "workspacePath": null,
+        "id": "rWF2uQgyf5cTLziv"
+    },
+    {
+        "type": "Group",
+        "name": "src",
+        "parent_id": null,
+        "workspaceRoot": null,
+        "workspacePath": null,
+        "id": "rATR7Va1QE4NCL2m"
+    },
+    {
+        "type": "Directory",
+        "name": "/home/bakery/gem5/configs/ncu_lab1_config",
+        "parent_id": "rWF2uQgyf5cTLziv",
+        "workspaceRoot": "/home/bakery/gem5",
+        "workspacePath": "configs/ncu_lab1_config",
+        "id": "K0zD1SP92fFlIoBV"
+    },
+    {
+        "type": "Directory",
+        "name": "/home/bakery/gem5/src/ncu_lab1_src",
+        "parent_id": "rATR7Va1QE4NCL2m",
+        "workspaceRoot": "/home/bakery/gem5",
+        "workspacePath": "src/ncu_lab1_src",
+        "id": "3tzW7I2DwEHgkjKo"
+    },
+    {
+        "type": "File",
+        "name": "/home/bakery/gem5/hammingcode.cc",
+        "parent_id": null,
+        "workspaceRoot": "/home/bakery/gem5",
+        "workspacePath": "hammingcode.cc",
+        "id": "n4b9QW5hmMoe1RUA"
+    }
+]
