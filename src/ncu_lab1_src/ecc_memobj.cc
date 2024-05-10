@@ -182,10 +182,12 @@ namespace gem5
         if (pkt->isWrite()) {
 
             //pkt基本資訊---------------------------------------------------------------------------------------------
-            DPRINTF(ECCMemobj, "cpu->mem Got request for addr %#x\n", pkt->getAddr());
+            DPRINTF(ECCMemobj, "cpu->mem Got request for addr %#x , %llu\n", pkt->getAddr(), pkt->getAddr());
             DPRINTF(ECCMemobj, "size %#x\n", pkt->getSize());
             uint8_t* data = pkt->getPtr<uint8_t>();
             size_t size = pkt->getSize();
+            DPRINTF(ECCMemobj, "id %llu\n", pkt->id);
+
             int n_bits_data = sizeof(uint8_t) * size;
             int m_bits_parity = static_cast<int>(std::log2(n_bits_data) + 1);
 
@@ -217,51 +219,61 @@ namespace gem5
             //輸出binary_data---------------------------------------------------------------------------------------------
 
 
-            //產生hamming code---------------------------------------------------------------------------------------------
+            // //方法1. 產生hamming code，並存入map，供response使用---------------------------------------------------------------------------------------------
+            // int parity = generateHammingCode(data_vector, n_bits_data, m_bits_parity);
+            // hammingCodeMap[pkt->getAddr()].first = parity;
+            // hammingCodeMap[pkt->getAddr()].second = size;
+            // DPRINTF(ECCMemobj, "hamming code : %d \n", parity);
+            // //產生hamming code，並存入map，供response使用---------------------------------------------------------------------------------------------
 
-            int parity = generateHammingCode(data_vector, n_bits_data, m_bits_parity);
-            hammingCodeMap[pkt->getAddr()].first = parity;
-            hammingCodeMap[pkt->getAddr()].second = size;
-            DPRINTF(ECCMemobj, "hamming code : %d \n", parity);
-            //產生hamming code---------------------------------------------------------------------------------------------
+            //方法2. 分別存hamming code
+            for (int i = 0; i < size; i++) {
+                std::vector<int> data_subset(data_vector.begin() + (i * 8), data_vector.begin() + ((i + 1) * 8));
 
+                int parity = generateHammingCode(data_subset, 8, 4);
+                hammingCodeMap[pkt->getAddr() + (i)] = parity;
+                DPRINTF(ECCMemobj, "hamming code addr: %llu \n", pkt->getAddr() + (i * 8));
 
-            //反轉某一個bit 存入Pkt---------------------------------------------------------------------------------------------
-            if (error_time % 10 == 0) {
-                std::random_device rd;
-                std::mt19937 gen(rd());
-
-                auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-                gen.seed(seed);
-
-
-                int min = 0;
-                int max = n_bits_data - 1;
-
-                int x = rand() % (max - min + 1) + min;
-
-                DPRINTF(ECCMemobj, "Enter Error Bit index: %d \n", x + 1);
-
-                size_t byte_index = x / 8;
-                int bit_index = x % 8;
-
-                data[byte_index] ^= (1 << 7 - bit_index);
-
-                //輸出flip_binary_data---------------------------------------------------------------------------------------------
-                index = 0;
-                data_vector.resize(8 * size, 0);
-                for (size_t i = 0; i < size; i++) {
-                    std::bitset<8> binary(data[i]);
-                    for (int j = 7; j >= 0; j--) { // 從高位到低位逐位複製
-                        data_vector[index++] = static_cast<int>(binary[j]); // 將二進制位轉換為字符
-                    }
-                }
-                DPRINTF(ECCMemobj, "flip data : %s \n", vector_int_to_string(data_vector).c_str());
-                //輸出flip_binary_data---------------------------------------------------------------------------------------------
-
+                DPRINTF(ECCMemobj, "hamming code : %d \n", parity);
             }
-            ++error_time;
+            //分別存hamming code
+
             //反轉某一個bit 存入Pkt---------------------------------------------------------------------------------------------
+            // if (error_time % 10 == 0) {
+            std::random_device rd;
+            std::mt19937 gen(rd());
+
+            auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            gen.seed(seed);
+
+
+            int min = 0;
+            int max = n_bits_data - 1;
+
+            int x = rand() % (max - min + 1) + min;
+
+            DPRINTF(ECCMemobj, "Enter Error Bit index: %d \n", x + 1);
+
+            size_t byte_index = x / 8;
+            int bit_index = x % 8;
+
+            data[byte_index] ^= (1 << 7 - bit_index);
+
+            //輸出flip_binary_data---------------------------------------------------------------------------------------------
+            index = 0;
+            data_vector.resize(8 * size, 0);
+            for (size_t i = 0; i < size; i++) {
+                std::bitset<8> binary(data[i]);
+                for (int j = 7; j >= 0; j--) { // 從高位到低位逐位複製
+                    data_vector[index++] = static_cast<int>(binary[j]); // 將二進制位轉換為字符
+                }
+            }
+            DPRINTF(ECCMemobj, "flip data : %s \n", vector_int_to_string(data_vector).c_str());
+            //輸出flip_binary_data---------------------------------------------------------------------------------------------
+
+        // }
+        // ++error_time;
+        //反轉某一個bit 存入Pkt---------------------------------------------------------------------------------------------
 
 
 
@@ -287,25 +299,19 @@ namespace gem5
         assert(blocked);
         //----------------------------------------------------------------Lab1 mem->cpu修改區域--------------------------------------------------------------------
 
-        if (pkt->isRead() &&
-            hammingCodeMap.find(pkt->getAddr()) != hammingCodeMap.end() &&
-            hammingCodeMap[pkt->getAddr()].second == pkt->getSize())
+        if (pkt->isRead())
         {
 
             //pkt基本資訊---------------------------------------------------------------------------------------------
-            DPRINTF(ECCMemobj, "mem->cpu Got response for addr %#x\n", pkt->getAddr());
+            DPRINTF(ECCMemobj, "mem->cpu Got response for addr %#x , %llu\n", pkt->getAddr(), pkt->getAddr());
             DPRINTF(ECCMemobj, "size %#x\n", pkt->getSize());
             uint8_t* data = pkt->getPtr<uint8_t>();
             size_t size = pkt->getSize();
+            DPRINTF(ECCMemobj, "id %llu\n", pkt->id);
+
             int n_bits_data = sizeof(uint8_t) * size;
             int m_bits_parity = static_cast<int>(std::log2(n_bits_data) + 1);
             //pkt基本資訊---------------------------------------------------------------------------------------------
-
-            //map 找對應的hamming code---------------------------------------------------------------------------------------------
-            int out_parity = hammingCodeMap[pkt->getAddr()].first;
-            DPRINTF(ECCMemobj, "hamming code out: %d \n", out_parity);
-            //map 找對應的hamming code---------------------------------------------------------------------------------------------
-
 
             //輸出hex_data----------------------------------------------------------------------------------------------
 
@@ -332,10 +338,36 @@ namespace gem5
             //輸出binary_data---------------------------------------------------------------------------------------------
 
 
+            // //-----------------------------
+            // //方法1 . 全部對應
+            // //map 找對應的hamming code---------------------------------------------------------------------------------------------
+            // int out_parity = hammingCodeMap[pkt->getAddr()].first;
+            // DPRINTF(ECCMemobj, "hamming code out: %d \n", out_parity);
+            // //map 找對應的hamming code---------------------------------------------------------------------------------------------
 
-            //尋找錯誤位置並修正data_vector---------------------------------------------------------------------------------------------
-            ECC_fix(data_vector, out_parity, n_bits_data, m_bits_parity);
-            //尋找錯誤位置並修正data_vector---------------------------------------------------------------------------------------------
+
+            // //尋找錯誤位置並修正data_vector---------------------------------------------------------------------------------------------
+            // ECC_fix(data_vector, out_parity, n_bits_data, m_bits_parity);
+            // //尋找錯誤位置並修正data_vector---------------------------------------------------------------------------------------------
+            // //-----------------------------
+
+            //方法2 . 8bit對應
+
+            for (int i = 0; i < size; i++) {
+                std::vector<int> data_subset(data_vector.begin() + (i * 8), data_vector.begin() + ((i + 1) * 8));
+                if (hammingCodeMap.find(pkt->getAddr() + (i)) != hammingCodeMap.end()) {
+                    int out_parity = hammingCodeMap[pkt->getAddr() + (i)];
+                    DPRINTF(ECCMemobj, "hamming code addr: %llu \n", pkt->getAddr() + (i * 8));
+
+                    DPRINTF(ECCMemobj, "hamming code out: %d \n", out_parity);
+
+                    ECC_fix(data_subset, out_parity, 8, 4);
+                }
+                std::copy(data_subset.begin(), data_subset.end(), data_vector.begin() + (i * 8));
+            }
+
+            //-----------------------------
+
 
             //把修正後的再次設定進Pkt---------------------------------------------------------------------------------------------
             int s = pkt->getSize();
@@ -349,11 +381,9 @@ namespace gem5
                     }
                     ++idx;
                 }
-                //cout<<output<<'\n';
                 c = (unsigned char)output;
                 output = 0;
                 data[i] = c;
-                //printf("%x\n", c);
             }
 
             //輸出fix_binary_data---------------------------------------------------------------------------------------------
@@ -466,7 +496,8 @@ namespace gem5
         input_parity ^= parity;
         if (input_parity != 0) {
             DPRINTF(ECCMemobj, "find Error Bit index : %d \n", combine[input_parity] + 1); //從1開始看
-            input[combine[input_parity]] ^= 1; //利用combine vector 找回原本input index
+            if (combine[input_parity] >= 0 && combine[input_parity] < input.size())
+                input[combine[input_parity]] ^= 1; //利用combine vector 找回原本input index
         }
     }
     std::string ECCMemobj::vector_int_to_string(std::vector<int>& vector_int) {

@@ -194,7 +194,7 @@ namespace gem5
      */
 
     bool handleRequest(PacketPtr pkt);
-    std::unordered_map<uint64_t, std::pair<int, size_t>> hammingCodeMap;
+    std::unordered_map<uint64_t, int> hammingCodeMap;
     int generateHammingCode(std::vector<int>& input, int n_bits_data, int m_bits_parity);
     void ECC_fix(std::vector<int>& input, int parity, int n_bits_data, int m_bits_parity);
     std::string vector_int_to_string(std::vector<int>& vector_int);
